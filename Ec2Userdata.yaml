@@ -223,7 +223,6 @@ Resources:
             "/home/ec2-user/scripts/nodejsenvs": 
               content: |
                 #!/bin/bash
-                echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/ec2-user/.bashrc
                 echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
                 echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
               mode: '000755'
@@ -238,14 +237,27 @@ Resources:
               mode: '000755'
               owner: ec2-user
               group: ec2-user
-              
-
+            "/home/ec2-user/scripts/installnode":
+              content: |
+                #!/bin/bash
+                id > /home/ec2-user/tmpid
+                /home/ec2-user/scripts/nodejsenvs
+                source ~/.bashrc
+                source ~/.nvm/nvm.sh
+                echo $NVM_DIR  > /home/ec2-user/tmpnvmdir
+                nvm --version
+                nvm install 16
+                node --version
+              mode: '000755'
+              owner: ec2-user
+              group: ec2-user
+                
           commands:
             01_make_input_dir:
               command: "mkdir /input"
               test: "test ! -e /inupt"
               cwd: "/"
-            02_datafile:
+            02_get_datafile:
               command: !Sub "aws s3 cp ${BikeDataBucketFile} /input"
               test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
               cwd: "/"
@@ -255,11 +267,10 @@ Resources:
               command:  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash 
               # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} " 
             05_mv_nvm:
-              command: "mv /.nvm /home/ec2-user"
-            06_source_nodejs:
-              command:  "/home/ec2-user/scripts/nodejsenvs && source /home/ec2-user/.nvm/nvm.sh && source /home/ec2-user/.bashrc"
-            07_install_nodejs:
-              command: "nvm install 16"
+              command: "mv /.nvm /home/ec2-user && chown -R ec2-user:ec2-user /home/ec2-user"
+            06_install_node:
+              command: 'sudo -u ec2-user "/home/ec2-user/scripts/installnode"'
+
                             
     CreationPolicy:
       ResourceSignal:
