@@ -34,8 +34,7 @@ Parameters:
     Type: String
     Default: 10.192.21.0/24
 
-  
- #Allowed values: 
+  #Allowed values:
   # DBUsername:
   #   Type: "String"
   # DBPassword:
@@ -260,4 +259,3 @@ Outputs:
     Value: !Ref DBSubnetGroup
     Export:
       Name: SubnetGroupForDb
-

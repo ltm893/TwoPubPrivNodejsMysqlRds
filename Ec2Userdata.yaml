@@ -10,10 +10,10 @@ Parameters:
 Resources:
   Nodejs4MysqlInstanceProfile:
     Type: AWS::IAM::InstanceProfile
-    Properties: 
+    Properties:
       InstanceProfileName: nodjs-mysql-instance-profile
       Path: /
-      Roles: 
+      Roles:
         - !Ref Ec2MysqlInstanceRole
 
   Ec2MysqlInstanceRole:
@@ -23,8 +23,7 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - ec2.amazonaws.com
@@ -36,90 +35,92 @@ Resources:
     Type: AWS::IAM::Policy
     Properties:
       Roles:
-      -
-        !Ref Ec2MysqlInstanceRole
+        - !Ref Ec2MysqlInstanceRole
       PolicyName: Ec2RdsPolicy
+
       PolicyDocument:
         Version: 2012-10-17
-        Statement:  [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "rds:*",
-                "application-autoscaling:DeleteScalingPolicy",
-                "application-autoscaling:DeregisterScalableTarget",
-                "application-autoscaling:DescribeScalableTargets",
-                "application-autoscaling:DescribeScalingActivities",
-                "application-autoscaling:DescribeScalingPolicies",
-                "application-autoscaling:PutScalingPolicy",
-                "application-autoscaling:RegisterScalableTarget",
-                "cloudwatch:DescribeAlarms",
-                "cloudwatch:GetMetricStatistics",
-                "cloudwatch:PutMetricAlarm",
-                "cloudwatch:DeleteAlarms",
-                "cloudwatch:ListMetrics",
-                "cloudwatch:GetMetricData",
-                "ec2:DescribeAccountAttributes",
-                "ec2:DescribeAvailabilityZones",
-                "ec2:DescribeCoipPools",
-                "ec2:DescribeInternetGateways",
-                "ec2:DescribeLocalGatewayRouteTablePermissions",
-                "ec2:DescribeLocalGatewayRouteTables",
-                "ec2:DescribeLocalGatewayRouteTableVpcAssociations",
-                "ec2:DescribeLocalGateways",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSubnets",
-                "ec2:DescribeVpcAttribute",
-                "ec2:DescribeVpcs",
-                "ec2:GetCoipPoolUsage",
-                "sns:ListSubscriptions",
-                "sns:ListTopics",
-                "sns:Publish",
-                "logs:DescribeLogStreams",
-                "logs:GetLogEvents",
-                "outposts:GetOutpostInstanceTypes",
-                "devops-guru:GetResourceCollection"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": "pi:*",
-            "Resource": "arn:aws:pi:*:*:metrics/rds/*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": "iam:CreateServiceLinkedRole",
-            "Resource": "*",
-            "Condition": {
-                "StringLike": {
-                    "iam:AWSServiceName": [
-                        "rds.amazonaws.com",
-                        "rds.application-autoscaling.amazonaws.com"
-                    ]
-                }
-            }
-        },
-        {
-            "Action": [
-                "devops-guru:SearchInsights",
-                "devops-guru:ListAnomaliesForInsight"
-            ],
-            "Effect": "Allow",
-            "Resource": "*",
-            "Condition": {
-                "ForAllValues:StringEquals": {
-                    "devops-guru:ServiceNames": [
-                        "RDS"
-                    ]
+        Statement:
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "rds:*",
+                  "application-autoscaling:DeleteScalingPolicy",
+                  "application-autoscaling:DeregisterScalableTarget",
+                  "application-autoscaling:DescribeScalableTargets",
+                  "application-autoscaling:DescribeScalingActivities",
+                  "application-autoscaling:DescribeScalingPolicies",
+                  "application-autoscaling:PutScalingPolicy",
+                  "application-autoscaling:RegisterScalableTarget",
+                  "cloudwatch:DescribeAlarms",
+                  "cloudwatch:GetMetricStatistics",
+                  "cloudwatch:PutMetricAlarm",
+                  "cloudwatch:DeleteAlarms",
+                  "cloudwatch:ListMetrics",
+                  "cloudwatch:GetMetricData",
+                  "ec2:DescribeAccountAttributes",
+                  "ec2:DescribeAvailabilityZones",
+                  "ec2:DescribeCoipPools",
+                  "ec2:DescribeInternetGateways",
+                  "ec2:DescribeLocalGatewayRouteTablePermissions",
+                  "ec2:DescribeLocalGatewayRouteTables",
+                  "ec2:DescribeLocalGatewayRouteTableVpcAssociations",
+                  "ec2:DescribeLocalGateways",
+                  "ec2:DescribeSecurityGroups",
+                  "ec2:DescribeSubnets",
+                  "ec2:DescribeVpcAttribute",
+                  "ec2:DescribeVpcs",
+                  "ec2:GetCoipPoolUsage",
+                  "sns:ListSubscriptions",
+                  "sns:ListTopics",
+                  "sns:Publish",
+                  "logs:DescribeLogStreams",
+                  "logs:GetLogEvents",
+                  "outposts:GetOutpostInstanceTypes",
+                  "devops-guru:GetResourceCollection",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action": "pi:*",
+              "Resource": "arn:aws:pi:*:*:metrics/rds/*",
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iam:CreateServiceLinkedRole",
+              "Resource": "*",
+              "Condition":
+                {
+                  "StringLike":
+                    {
+                      "iam:AWSServiceName":
+                        [
+                          "rds.amazonaws.com",
+                          "rds.application-autoscaling.amazonaws.com",
+                        ],
+                    },
                 },
-                "Null": {
-                    "devops-guru:ServiceNames": "false"
-                }
-            }
-        }
-    ]
-    
+            },
+            {
+              "Action":
+                [
+                  "devops-guru:SearchInsights",
+                  "devops-guru:ListAnomaliesForInsight",
+                ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Condition":
+                {
+                  "ForAllValues:StringEquals":
+                    { "devops-guru:ServiceNames": ["RDS"] },
+                  "Null": { "devops-guru:ServiceNames": "false" },
+                },
+            },
+          ]
+
   NodejsInstanceS3Policy:
     Type: AWS::IAM::Policy
     Properties:
@@ -127,16 +128,14 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Action:
               - s3:*
             Resource:
               - arn:aws:s3:::ltm893-mysql-bike-loads/*
               - arn:aws:s3:::ltm893-mysql-bike-loads
       Roles:
-        -
-          !Ref Ec2MysqlInstanceRole
+        - !Ref Ec2MysqlInstanceRole
 
   NodejsInstanceSecretPolicy:
     Type: AWS::IAM::Policy
@@ -145,13 +144,11 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
-            Action:  "secretsmanager:GetSecretValue"
+          - Effect: Allow
+            Action: "secretsmanager:GetSecretValue"
             Resource: !Ref BikesDbSecret
       Roles:
-        -
-          !Ref Ec2MysqlInstanceRole
+        - !Ref Ec2MysqlInstanceRole
 
   NodejsInstanceSsmPolicy:
     Type: AWS::IAM::Policy
@@ -159,55 +156,58 @@ Resources:
       PolicyName: Ec2MysqlSsmPolicy
       PolicyDocument:
         Version: 2012-10-17
-        Statement : [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ssm:DescribeAssociation",
-                "ssm:GetDeployablePatchSnapshotForInstance",
-                "ssm:GetDocument",
-                "ssm:DescribeDocument",
-                "ssm:GetManifest",
-                "ssm:GetParameter",
-                "ssm:GetParameters",
-                "ssm:ListAssociations",
-                "ssm:ListInstanceAssociations",
-                "ssm:PutInventory",
-                "ssm:PutComplianceItems",
-                "ssm:PutConfigurePackageResult",
-                "ssm:UpdateAssociationStatus",
-                "ssm:UpdateInstanceAssociationStatus",
-                "ssm:UpdateInstanceInformation"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ssmmessages:CreateControlChannel",
-                "ssmmessages:CreateDataChannel",
-                "ssmmessages:OpenControlChannel",
-                "ssmmessages:OpenDataChannel"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ec2messages:AcknowledgeMessage",
-                "ec2messages:DeleteMessage",
-                "ec2messages:FailMessage",
-                "ec2messages:GetEndpoint",
-                "ec2messages:GetMessages",
-                "ec2messages:SendReply"
-            ],
-            "Resource": "*"
-        }
-    ]
+        Statement:
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ssm:DescribeAssociation",
+                  "ssm:GetDeployablePatchSnapshotForInstance",
+                  "ssm:GetDocument",
+                  "ssm:DescribeDocument",
+                  "ssm:GetManifest",
+                  "ssm:GetParameter",
+                  "ssm:GetParameters",
+                  "ssm:ListAssociations",
+                  "ssm:ListInstanceAssociations",
+                  "ssm:PutInventory",
+                  "ssm:PutComplianceItems",
+                  "ssm:PutConfigurePackageResult",
+                  "ssm:UpdateAssociationStatus",
+                  "ssm:UpdateInstanceAssociationStatus",
+                  "ssm:UpdateInstanceInformation",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ssmmessages:CreateControlChannel",
+                  "ssmmessages:CreateDataChannel",
+                  "ssmmessages:OpenControlChannel",
+                  "ssmmessages:OpenDataChannel",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ec2messages:AcknowledgeMessage",
+                  "ec2messages:DeleteMessage",
+                  "ec2messages:FailMessage",
+                  "ec2messages:GetEndpoint",
+                  "ec2messages:GetMessages",
+                  "ec2messages:SendReply",
+                ],
+              "Resource": "*",
+            },
+          ]
       Roles:
-        -
-          !Ref Ec2MysqlInstanceRole
-     
+        - !Ref Ec2MysqlInstanceRole
+
   EC2Nodejs:
     Type: AWS::EC2::Instance
     Metadata:
@@ -219,13 +219,13 @@ Resources:
               jq: []
               telnet: []
               mariadb: []
-          files : 
-            "/home/ec2-user/scripts/nodejsenvs": 
+          files:
+            "/home/ec2-user/scripts/nodejsenvs":
               content: |
                 #!/bin/bash
                 echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
                 echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
-              mode: '000755'
+              mode: "000755"
               owner: ec2-user
               group: ec2-user
             "/home/ec2-user/scripts/loaddb":
@@ -234,7 +234,15 @@ Resources:
                 SECRETID=${BikesDbSecret}
                 TPASS=`aws secretsmanager get-secret-value --secret-id $SECRETID --query "SecretString" --output text --region us-east-2 |jq -r ."password"`
                 mysql -h ${MyDB.Endpoint.Address} --port 3306 -u admin -p$TPASS < /input/load-bikes.sql
-              mode: '000755'
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+            "/home/ec2-user/scripts/PrivateIP":
+              content : |
+                #!/bin/bash
+                TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` 
+                export PRIVIP=`curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/local-ipv4`
+              mode: "000755"
               owner: ec2-user
               group: ec2-user
             "/home/ec2-user/scripts/installnode":
@@ -244,14 +252,36 @@ Resources:
                 /home/ec2-user/scripts/nodejsenvs
                 source ~/.bashrc
                 source ~/.nvm/nvm.sh
+                source /home/ec2-user/scripts/PrivateIP
+                echo 'export PRIVIP=$PRIVIP'  >> /home/ec2-user/.bashrc
                 echo $NVM_DIR  > /home/ec2-user/tmpnvmdir
                 nvm --version
                 nvm install 16
+                #npm install dotenv --save
                 node --version
-              mode: '000755'
+              mode: "000755"
               owner: ec2-user
               group: ec2-user
-                
+           
+            "/home/ec2-user/app/server.js":
+              content:  |
+                require('dotenv').config();
+                const http = require('node:http');
+                const hostname = process.env.PRIVIP
+                const port = 3000;
+                const server = http.createServer((req, res) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end('Way We Move!\n');
+                });
+                const hoststring = "Server running at http://" + hostname + ":" + port + "/" ; 
+                server.listen(port, hostname, () => {
+                console.log(hoststring);
+                }); 
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+
           commands:
             01_make_input_dir:
               command: "mkdir /input"
@@ -264,21 +294,22 @@ Resources:
             03_load_data:
               command: "/home/ec2-user/scripts/loaddb"
             04_get_nodejs:
-              command:  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash 
-              # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} " 
+              command: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+              # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
             05_mv_nvm:
               command: "mv /.nvm /home/ec2-user && chown -R ec2-user:ec2-user /home/ec2-user"
             06_install_node:
               command: 'sudo -u ec2-user "/home/ec2-user/scripts/installnode"'
+            #07_start_node:
+              # command: 'sudo -u ec2-user "node /home/ec2-user/app/server.js"'
 
-                            
     CreationPolicy:
       ResourceSignal:
         Timeout: PT15M
-        
+
     Properties:
       InstanceType: t2.micro
-      IamInstanceProfile:  !Ref Nodejs4MysqlInstanceProfile
+      IamInstanceProfile: !Ref Nodejs4MysqlInstanceProfile
       KeyName: Sys0
       ImageId: !Ref ImageId
       NetworkInterfaces:
@@ -288,20 +319,18 @@ Resources:
             - !Ref InstanceSecurityGroup
           SubnetId: !ImportValue Ec2Subnet1
       UserData:
-        Fn::Base64:
-          !Sub |
-            #!/bin/bash -xe
-            
-            # Get the latest CloudFormation helper scripts
-            yum install -y aws-cfn-bootstrap
-            
-            # Start cfn-init
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
-            
-            # cfn-init completed so signal success or not
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
-      
-          
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+
+          # Get the latest CloudFormation helper scripts
+          yum install -y aws-cfn-bootstrap
+
+          # Start cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
+          # cfn-init completed so signal success or not
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
   MyDB:
     Type: AWS::RDS::DBInstance
     DependsOn: BikesDbSecret
@@ -319,7 +348,7 @@ Resources:
       DBSubnetGroupName: !ImportValue SubnetGroupForDb
       MasterUsername: "{{resolve:secretsmanager:BikesDbSecret:SecretString:username}}"
       MasterUserPassword: "{{resolve:secretsmanager:BikesDbSecret:SecretString:password}}"
-      
+
   BikesDbSecret:
     Type: "AWS::SecretsManager::Secret"
     Properties:
@@ -333,7 +362,7 @@ Resources:
       Tags:
         - Key: AppKey
           Value: AppValue
-       
+
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     #DependsOn: DBEC2SecurityGroup
@@ -342,8 +371,8 @@ Resources:
       VpcId: !ImportValue TwoPubPrivVpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 3000
+          ToPort: 3000
           CidrIp: 0.0.0.0/0
 
   DBEC2SecurityGroup:
@@ -356,7 +385,3 @@ Resources:
           SourceSecurityGroupId: !Ref InstanceSecurityGroup
           FromPort: 3306
           ToPort: 3306
-
-    
-           
-           
