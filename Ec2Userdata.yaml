@@ -1,3 +1,4 @@
+AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   ImageId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -6,6 +7,10 @@ Parameters:
   BikeDataBucketFile:
     Type: String
     Default: s3://ltm893-mysql-bike-loads/load-bikes.sql
+  
+  EC2PrivateIpAddress:
+    Type: String
+    Default: 10.192.20.149
 
 Resources:
   Nodejs4MysqlInstanceProfile:
@@ -233,7 +238,7 @@ Resources:
                 #!/bin/bash
                 SECRETID=${BikesDbSecret}
                 TPASS=`aws secretsmanager get-secret-value --secret-id $SECRETID --query "SecretString" --output text --region us-east-2 |jq -r ."password"`
-                mysql -h ${MyDB.Endpoint.Address} --port 3306 -u admin -p$TPASS < /input/load-bikes.sql
+                mysql -h ${RdsMysqlDb.Endpoint.Address} --port 3306 -u admin -p$TPASS < /input/load-bikes.sql
               mode: "000755"
               owner: ec2-user
               group: ec2-user
@@ -313,11 +318,11 @@ Resources:
       KeyName: Sys0
       ImageId: !Ref ImageId
       NetworkInterfaces:
-        - AssociatePublicIpAddress: true
+        - AssociatePublicIpAddress: false
           DeviceIndex: "0"
           GroupSet:
             - !Ref InstanceSecurityGroup
-          SubnetId: !ImportValue Ec2Subnet1
+          SubnetId: !ImportValue RdsSubnet1
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
@@ -331,7 +336,7 @@ Resources:
           # cfn-init completed so signal success or not
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
 
-  MyDB:
+  RdsMysqlDb:
     Type: AWS::RDS::DBInstance
     DependsOn: BikesDbSecret
     UpdateReplacePolicy: Delete
@@ -342,7 +347,6 @@ Resources:
       AllocatedStorage: "5"
       DBName: bikesdb
       EnableIAMDatabaseAuthentication: true
-      DBInstanceIdentifier: bikesdb-mysql
       DBInstanceClass: db.t2.small
       Engine: MySQL
       DBSubnetGroupName: !ImportValue SubnetGroupForDb
@@ -385,3 +389,35 @@ Resources:
           SourceSecurityGroupId: !Ref InstanceSecurityGroup
           FromPort: 3306
           ToPort: 3306
+
+Outputs:
+  RdsMysqlDb:
+    Description: Endpoint of bikes RDS Mysql DB
+    Value: !GetAtt RdsMysqlDb.Endpoint.Address
+    Export:
+      Name: RdsMysqlDbExport
+      
+  BikesDbSecret:
+    Description: Secrets to connect to Bikes Database
+    Value: !Ref BikesDbSecret
+    Export:
+      Name: BikesDbSecretExport
+
+  DBSecurityGroup:
+    Description: Used by Lambda for access
+    Value: !Ref DBEC2SecurityGroup
+    Export:
+      Name: RdsSecurityGroupExport
+  
+  EC2SecurityGroup:
+    Description: Used by Lambda for access
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: Ec2IntanceSecurityGroupExport
+
+  Ec2InstanceIp:
+    Description: Used by API Gateway
+    Value: !GetAtt  EC2Nodejs.PrivateDnsName
+    Export:
+      Name: Ec2InstancePrivateDnsExport
+    
