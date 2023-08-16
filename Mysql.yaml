@@ -8,10 +8,6 @@ Parameters:
     Type: String
     Default: s3://ltm893-mysql-bike-loads/load-bikes.sql
   
-  EC2PrivateIpAddress:
-    Type: String
-    Default: 10.192.20.149
-
 Resources:
   Nodejs4MysqlInstanceProfile:
     Type: AWS::IAM::InstanceProfile

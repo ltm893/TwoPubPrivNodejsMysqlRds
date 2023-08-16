@@ -1,0 +1,420 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  BikeDataBucketFile:
+    Type: String
+    Default: s3://ltm893-mysql-bike-loads/load-bikes.sql
+  
+
+Resources:
+  Nodejs4MysqlInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: nodjs-mysql-instance-profile
+      Path: /
+      Roles:
+        - !Ref Ec2MysqlInstanceRole
+
+  Ec2MysqlInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ec2-mysql-instance-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+
+  NodejsInstanceRdsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref Ec2MysqlInstanceRole
+      PolicyName: Ec2RdsPolicy
+
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "rds:*",
+                  "application-autoscaling:DeleteScalingPolicy",
+                  "application-autoscaling:DeregisterScalableTarget",
+                  "application-autoscaling:DescribeScalableTargets",
+                  "application-autoscaling:DescribeScalingActivities",
+                  "application-autoscaling:DescribeScalingPolicies",
+                  "application-autoscaling:PutScalingPolicy",
+                  "application-autoscaling:RegisterScalableTarget",
+                  "cloudwatch:DescribeAlarms",
+                  "cloudwatch:GetMetricStatistics",
+                  "cloudwatch:PutMetricAlarm",
+                  "cloudwatch:DeleteAlarms",
+                  "cloudwatch:ListMetrics",
+                  "cloudwatch:GetMetricData",
+                  "ec2:DescribeAccountAttributes",
+                  "ec2:DescribeAvailabilityZones",
+                  "ec2:DescribeCoipPools",
+                  "ec2:DescribeInternetGateways",
+                  "ec2:DescribeLocalGatewayRouteTablePermissions",
+                  "ec2:DescribeLocalGatewayRouteTables",
+                  "ec2:DescribeLocalGatewayRouteTableVpcAssociations",
+                  "ec2:DescribeLocalGateways",
+                  "ec2:DescribeSecurityGroups",
+                  "ec2:DescribeSubnets",
+                  "ec2:DescribeVpcAttribute",
+                  "ec2:DescribeVpcs",
+                  "ec2:GetCoipPoolUsage",
+                  "sns:ListSubscriptions",
+                  "sns:ListTopics",
+                  "sns:Publish",
+                  "logs:DescribeLogStreams",
+                  "logs:GetLogEvents",
+                  "outposts:GetOutpostInstanceTypes",
+                  "devops-guru:GetResourceCollection",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action": "pi:*",
+              "Resource": "arn:aws:pi:*:*:metrics/rds/*",
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iam:CreateServiceLinkedRole",
+              "Resource": "*",
+              "Condition":
+                {
+                  "StringLike":
+                    {
+                      "iam:AWSServiceName":
+                        [
+                          "rds.amazonaws.com",
+                          "rds.application-autoscaling.amazonaws.com",
+                        ],
+                    },
+                },
+            },
+            {
+              "Action":
+                [
+                  "devops-guru:SearchInsights",
+                  "devops-guru:ListAnomaliesForInsight",
+                ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Condition":
+                {
+                  "ForAllValues:StringEquals":
+                    { "devops-guru:ServiceNames": ["RDS"] },
+                  "Null": { "devops-guru:ServiceNames": "false" },
+                },
+            },
+          ]
+
+  NodejsInstanceS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Ec2MyqlS3Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::ltm893-mysql-bike-loads/*
+              - arn:aws:s3:::ltm893-mysql-bike-loads
+      Roles:
+        - !Ref Ec2MysqlInstanceRole
+
+  NodejsInstanceSecretPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Ec2MyqlSecretPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: "secretsmanager:GetSecretValue"
+            Resource: !Ref BikesDbSecret
+      Roles:
+        - !Ref Ec2MysqlInstanceRole
+
+  NodejsInstanceSsmPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Ec2MysqlSsmPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ssm:DescribeAssociation",
+                  "ssm:GetDeployablePatchSnapshotForInstance",
+                  "ssm:GetDocument",
+                  "ssm:DescribeDocument",
+                  "ssm:GetManifest",
+                  "ssm:GetParameter",
+                  "ssm:GetParameters",
+                  "ssm:ListAssociations",
+                  "ssm:ListInstanceAssociations",
+                  "ssm:PutInventory",
+                  "ssm:PutComplianceItems",
+                  "ssm:PutConfigurePackageResult",
+                  "ssm:UpdateAssociationStatus",
+                  "ssm:UpdateInstanceAssociationStatus",
+                  "ssm:UpdateInstanceInformation",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ssmmessages:CreateControlChannel",
+                  "ssmmessages:CreateDataChannel",
+                  "ssmmessages:OpenControlChannel",
+                  "ssmmessages:OpenDataChannel",
+                ],
+              "Resource": "*",
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "ec2messages:AcknowledgeMessage",
+                  "ec2messages:DeleteMessage",
+                  "ec2messages:FailMessage",
+                  "ec2messages:GetEndpoint",
+                  "ec2messages:GetMessages",
+                  "ec2messages:SendReply",
+                ],
+              "Resource": "*",
+            },
+          ]
+      Roles:
+        - !Ref Ec2MysqlInstanceRole
+
+  EC2Nodejs:
+    Type: AWS::EC2::Instance
+    Metadata:
+      Comment: Bring up app server
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              jq: []
+              telnet: []
+              mariadb: []
+          files:
+            "/home/ec2-user/scripts/nodejsenvs":
+              content: |
+                #!/bin/bash
+                echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
+                echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+            "/home/ec2-user/scripts/loaddb":
+              content: !Sub |
+                #!/bin/bash
+                SECRETID=${BikesDbSecret}
+                TPASS=`aws secretsmanager get-secret-value --secret-id $SECRETID --query "SecretString" --output text --region us-east-2 |jq -r ."password"`
+                mysql -h ${RdsMysqlDb.Endpoint.Address} --port 3306 -u admin -p$TPASS < /input/load-bikes.sql
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+            "/home/ec2-user/scripts/PrivateIP":
+              content : |
+                #!/bin/bash
+                TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` 
+                export PRIVIP=`curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/local-ipv4`
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+            "/home/ec2-user/scripts/installnode":
+              content: |
+                #!/bin/bash
+                id > /home/ec2-user/tmpid
+                /home/ec2-user/scripts/nodejsenvs
+                source ~/.bashrc
+                source ~/.nvm/nvm.sh
+                source /home/ec2-user/scripts/PrivateIP
+                echo 'export PRIVIP=$PRIVIP'  >> /home/ec2-user/.bashrc
+                echo $NVM_DIR  > /home/ec2-user/tmpnvmdir
+                nvm --version
+                nvm install 16
+                #npm install dotenv --save
+                node --version
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+           
+            "/home/ec2-user/app/server.js":
+              content:  |
+                require('dotenv').config();
+                const http = require('node:http');
+                const hostname = process.env.PRIVIP
+                const port = 3000;
+                const server = http.createServer((req, res) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end('Way We Move!\n');
+                });
+                const hoststring = "Server running at http://" + hostname + ":" + port + "/" ; 
+                server.listen(port, hostname, () => {
+                console.log(hoststring);
+                }); 
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+
+          commands:
+            01_make_input_dir:
+              command: "mkdir /input"
+              test: "test ! -e /inupt"
+              cwd: "/"
+            02_get_datafile:
+              command: !Sub "aws s3 cp ${BikeDataBucketFile} /input"
+              test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
+              cwd: "/"
+            03_load_data:
+              command: "/home/ec2-user/scripts/loaddb"
+            04_get_nodejs:
+              command: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+              # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
+            05_mv_nvm:
+              command: "mv /.nvm /home/ec2-user && chown -R ec2-user:ec2-user /home/ec2-user"
+            06_install_node:
+              command: 'sudo -u ec2-user "/home/ec2-user/scripts/installnode"'
+            #07_start_node:
+              # command: 'sudo -u ec2-user "node /home/ec2-user/app/server.js"'
+
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+
+    Properties:
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref Nodejs4MysqlInstanceProfile
+      KeyName: Sys0
+      ImageId: !Ref ImageId
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref InstanceSecurityGroup
+          SubnetId: !ImportValue RdsSubnet1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+
+          # Get the latest CloudFormation helper scripts
+          yum install -y aws-cfn-bootstrap
+
+          # Start cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
+          # cfn-init completed so signal success or not
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
+  RdsMysqlDb:
+    Type: AWS::RDS::DBInstance
+    DependsOn: BikesDbSecret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      VPCSecurityGroups:
+        - !GetAtt DBEC2SecurityGroup.GroupId
+      AllocatedStorage: "5"
+      DBName: bikesdb
+      EnableIAMDatabaseAuthentication: true
+      DBInstanceClass: db.t2.small
+      Engine: MySQL
+      DBSubnetGroupName: !ImportValue SubnetGroupForDb
+      MasterUsername: "{{resolve:secretsmanager:BikesDbSecret:SecretString:username}}"
+      MasterUserPassword: "{{resolve:secretsmanager:BikesDbSecret:SecretString:password}}"
+
+  BikesDbSecret:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: BikesDbSecret
+      Description: "This secret has a dynamically generated secret password."
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: AppKey
+          Value: AppValue
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    #DependsOn: DBEC2SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId: !ImportValue TwoPubPrivVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+
+  DBEC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow nodejs security group
+      VpcId: !ImportValue TwoPubPrivVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref InstanceSecurityGroup
+          FromPort: 3306
+          ToPort: 3306
+
+Outputs:
+  RdsMysqlDb:
+    Description: Endpoint of bikes RDS Mysql DB
+    Value: !GetAtt RdsMysqlDb.Endpoint.Address
+    Export:
+      Name: RdsMysqlDbExport
+      
+  BikesDbSecret:
+    Description: Secrets to connect to Bikes Database
+    Value: !Ref BikesDbSecret
+    Export:
+      Name: BikesDbSecretExport
+
+  DBSecurityGroup:
+    Description: Used by Lambda for access
+    Value: !Ref DBEC2SecurityGroup
+    Export:
+      Name: RdsSecurityGroupExport
+  
+  EC2SecurityGroup:
+    Description: Used by Lambda for access
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: Ec2IntanceSecurityGroupExport
+
+  EC2Nodejs:
+    Description: Used by API Gateway
+    Value: !GetAtt  EC2Nodejs.PrivateDnsName
+    Export:
+      Name: Ec2InstancePrivateDnsExport
+    

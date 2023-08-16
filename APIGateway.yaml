@@ -1,0 +1,19 @@
+BikesApi:
+  Type: AWS::ApiGateway::RestApi
+  Properties: 
+    Name: String
+  
+HttpGetMethod:
+  Type: AWS::ApiGateway::Method
+  Properties:
+    RestApiId: !Ref BikesApi
+    ResourceId:
+        Fn::GetAtt:
+        - BikesApi
+        - RootResourceId
+    HttpMethod: GET
+    AuthorizationType: NONE
+    MethodResponses:
+      - StatusCode: 200
+
+
