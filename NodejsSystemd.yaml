@@ -203,32 +203,47 @@ Resources:
               jq: []
               telnet: []
               mariadb: []
+              npm: []
+              node: []
           files:
-            "/home/ec2-user/scripts/nodejsenvs":
+            
+            "/home/ec2-user/scripts/npminstalls":
               content: |
                 #!/bin/bash
                 set -eo pipefail
-                echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
-                echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
-                echo 'TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`' >> /home/ec2-user/.bashrc
-                echo 'PRIVIP=`curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/local-ipv4`' >> /home/ec2-user/.bashrc
-                echo 'export PRIVIP=$PRIVIP' >> /home/ec2-user/.bashrc 
+                cd /home/ec2-user/app/
+                npm init -y 
+                npm ci body-parser
+                npm ci express
               mode: "000755"
               owner: ec2-user
               group: ec2-user
 
-            "/home/ec2-user/scripts/installnode":
+            "/home/ec2-user/scripts/simpleApp.service":
               content: |
-                #!/bin/bash
-                set -eo pipefail
-                id > /home/ec2-user/cf-id
-                /home/ec2-user/scripts/nodejsenvs
-                source ~/.bashrc
-                source ~/.nvm/nvm.sh
-                nvm install 16
+                [Unit]
+                Description=My Server
+                After=network.target
+                StartLimitIntervalSec=0
+
+                [Service]
+                Type=simple
+                ExecStart=/usr/bin/python3 /home/ubuntu/my_server.py
+
+                User=ubuntu
+
+                Environment=ENV=production
+
+                Restart=always
+                RestartSec=1
+
+                [Install]
+                WantedBy=multi-user.target
               mode: "000755"
               owner: ec2-user
               group: ec2-user
+                
+                          
 
             "/home/ec2-user/app/bikeapp/server.js":
               content: |
@@ -270,54 +285,12 @@ Resources:
               owner: ec2-user
               group: ec2-user
 
-            "/home/ec2-user/app/setupnpm":
-              content: |
-                #!/bin/bash
-                set -eo pipefail
-                cd /home/ec2-user/app/bikeapp
-                pwd > /home/ec2-user/cf-bikeapp
-                npm init -y 
-                npm install body-parser
-                npm install express
-              mode: "000755"
-              owner: ec2-user
-              group: ec2-user
-
-            "/etc/systemd/system/simpleApp.service":
-              content: |
-                [Unit]
-                Description=Simple Nodejs Express server
-                After=network.target
-
-                [Service]
-                Type=simple   
-                ExecStart=/home/ec2-user/.nvm/versions/node/v16.20.2/bin/node /home/ec2-user/app/server.js
-
-                User=ec2-user
-                Environment=ENV=production
-
-                Restart=always
-                RestartSec=1
-
-                [Install]
-                WantedBy=multi-user.target
-              mode: "000755"
-              owner: ec2-user
-              group: ec2-user
             
 
           commands:
-            01_get_nodejs:
-              command: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-              # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
-            02_mv_nvm:
-              command: "mv /.nvm /home/ec2-user && chown -R ec2-user:ec2-user /home/ec2-user"
-            03_install_node:
-              command: '/bin/su -c "/home/ec2-user/scripts/installnode" - ec2-user'
-            04_npm_init:
-              command: '/bin/su -c  "/home/ec2-user/app/setupnpm" - ec2-user'
-            05_start_app:
-              command: '/bin/su -c "sudo systemctl start simpleApp" - ec2-user'
+            01_npm_installs:
+              command: '/bin/su -c "/home/ec2-user/scripts/npminstalls" - ec2-user'
+        
             
     Properties:
       InstanceType: t2.micro
