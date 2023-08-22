@@ -1,0 +1,245 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+ 
+  EC2Nodejs:
+    Type: AWS::EC2::Instance
+    Metadata:
+      Comment: Bring up app server
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              jq: []
+              telnet: []
+              mariadb: []
+          files:
+            "/home/ec2-user/scripts/nodejsenvs":
+              content: |
+                #!/bin/bash
+                set -eo pipefail
+                echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
+                echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
+                echo 'TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` '  >> /home/ec2-user/.bashrc
+                echo 'PRIVIP=`curl -s -o /dev/null -H "X-aws-ec2-metadata-token: $TOKEN"  http://169.254.169.254/latest/meta-data/local-ipv4` > /dev/null'  >> /home/ec2-user/.bashrc
+                echo 'export PRIVIP=$PRIVIP' >> /home/ec2-user/.bashrc 
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+
+            "/home/ec2-user/scripts/installnode":
+              content: |
+                #!/bin/bash
+                set -eo pipefail
+                id > /home/ec2-user/cf-id
+                /home/ec2-user/scripts/nodejsenvs
+                source ~/.bashrc
+                source ~/.nvm/nvm.sh
+                nvm install 16
+              mode: "000755"
+              owner: ec2-user
+
+              group: ec2-user
+
+            "/home/ec2-user/app/bikeapp/server.js":
+              content: |
+                const express = require('express')
+                const bodyParser = require('body-parser')
+
+                const app = express()
+                const port = 8080
+
+                app.use(bodyParser.json())
+
+                app.get('/', (req, res) => {
+                    res.send('This is How we Move!')
+                })
+
+                app.get('/health', (req, res) => {
+                    res.header({ "System-Health": true })
+                    res.sendStatus(204)
+                })
+
+                const fibonacci = n => {
+                    if (n <= 1) {
+                        return n
+                    }
+                    return fibonacci(n - 1) + fibonacci(n - 2)
+                }
+
+                app.post('/fibonacci', (req, res) => {
+                    const fibIndex = req.body.index
+                    res.status(202).json({ index: fibIndex, result: "calculating..." })
+
+                    console.log("Fibonacci number:", fibonacci(fibIndex))
+                })
+
+                app.listen(port, () => {
+                    console.log(`App listening on port ${port}`)
+                })       
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+
+            "/home/ec2-user/app/setupnpm":
+              content: |
+                #!/bin/bash
+                set -eo pipefail
+                cd /home/ec2-user/app/bikeapp
+                pwd > /home/ec2-user/cf-bikeapp
+                npm init -y 
+                npm install body-parser
+                npm install express
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+
+            "/etc/systemd/system/simpleApp.service":
+              content: |
+                [Unit]
+                Description=Simple Nodejs Express server
+                After=network.target
+
+                [Service]
+                Type=simple   
+                ExecStart=/home/ec2-user/.nvm/versions/node/v16.20.2/bin/node /home/ec2-user/app/bikeapp/server.js
+
+                User=ec2-user
+                Environment=ENV=production
+
+                Restart=always
+                RestartSec=1
+
+                [Install]
+                WantedBy=multi-user.target
+              mode: "000755"
+              owner: ec2-user
+              group: ec2-user
+            
+
+          commands:
+            01_get_nodejs:
+              command: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+              # test: !Sub "test ! -e /inupt/${BikeDataBucketFile} "
+            02_mv_nvm:
+              command: "mv /.nvm /home/ec2-user && chown -R ec2-user:ec2-user /home/ec2-user"
+            03_install_node:
+              command: '/bin/su -c "/home/ec2-user/scripts/installnode" - ec2-user'
+            04_npm_init:
+              command: '/bin/su -c  "/home/ec2-user/app/setupnpm" - ec2-user'
+            05_start_app:
+              command: '/bin/su -c "sudo systemctl start simpleApp" - ec2-user'
+            
+    Properties:
+      InstanceType: t2.micro
+      IamInstanceProfile: !ImportValue Nodejs4MysqlInstanceProfileExport
+      KeyName: !ImportValue Ec2NodeKeyPairExport
+      ImageId: !Ref ImageId
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: "0"
+          GroupSet:
+            - !ImportValue Ec2IntanceSecurityGroupExport
+          SubnetId: !ImportValue RdsSubnet2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+
+          # Get the latest CloudFormation helper scripts
+          yum install -y aws-cfn-bootstrap
+
+          # Start cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
+          # cfn-init completed so signal success or not
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Nodejs --region ${AWS::Region}
+
+  NodejsTargeGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      Name: BikeAppTargetGroup
+      Protocol: TCP
+      Port: 8080
+      Targets: 
+        - Id: !ImportValue Ec2NodeArnExport
+          Port: 8080
+        - Id: !Ref EC2Nodejs
+          Port: 8080
+      TargetType: instance
+      UnhealthyThresholdCount: 2
+      VpcId: !ImportValue TwoPubPrivVpcId
+
+  NetworkElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: BikesNlb
+      Type: network
+      Scheme: internal
+      Subnets: 
+        - !ImportValue RdsSubnet1
+        - !ImportValue RdsSubnet2
+      SecurityGroups: 
+        - !ImportValue Ec2IntanceSecurityGroupExport
+
+  NlbListener:
+   Type: 'AWS::ElasticLoadBalancingV2::Listener'
+   Properties:
+     DefaultActions:
+       - Type: forward
+         TargetGroupArn: !Ref NodejsTargeGroup
+     LoadBalancerArn: !Ref NetworkElasticLoadBalancer
+     Port: 8080
+     Protocol: TCP
+
+  BikesHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: BikesApiCF
+      Description: BikesApis
+      ProtocolType: HTTP
+      
+  BikesApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties: 
+      ApiId: !Ref BikesHttpApi
+      StageName: Staging
+    
+  
+  BikesApiVpclink:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties: 
+      Name: BikesApiVpclink
+      SecurityGroupIds: 
+        - !ImportValue Ec2IntanceSecurityGroupExport
+      SubnetIds: 
+        - !ImportValue RdsSubnet1
+        - !ImportValue RdsSubnet2
+
+  BikeApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties: 
+      ApiId: !Ref BikesHttpApi
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref BikesApiVpclink
+      IntegrationMethod: ANY
+      IntegrationType: HTTP_PROXY
+      IntegrationUri: !Ref  NlbListener
+      PayloadFormatVersion: 1.0
+  
+  BikeApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: 
+      ApiId: !Ref BikesHttpApi
+      AuthorizationType: NONE
+      RouteKey: $default
+
+
+        

@@ -5,7 +5,7 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
 Resources:
-  Nodejs4MysqlInstanceProfile:
+  Nodejs4MysqlInstanceProfile: 
     Type: AWS::IAM::InstanceProfile
     Properties:
       InstanceProfileName: nodjs-mysql-instance-profile
@@ -210,8 +210,8 @@ Resources:
                 set -eo pipefail
                 echo 'export NVM_DIR="/home/ec2-user/.nvm"' >> /home/ec2-user/.bashrc
                 echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" ' >> /home/ec2-user/.bashrc
-                echo 'TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`' >> /home/ec2-user/.bashrc
-                echo 'PRIVIP=`curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/local-ipv4`' >> /home/ec2-user/.bashrc
+                echo 'TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` '  >> /home/ec2-user/.bashrc
+                echo 'PRIVIP=`curl -s -o /dev/null -H "X-aws-ec2-metadata-token: $TOKEN"  http://169.254.169.254/latest/meta-data/local-ipv4` > /dev/null'  >> /home/ec2-user/.bashrc
                 echo 'export PRIVIP=$PRIVIP' >> /home/ec2-user/.bashrc 
               mode: "000755"
               owner: ec2-user
@@ -228,6 +228,7 @@ Resources:
                 nvm install 16
               mode: "000755"
               owner: ec2-user
+
               group: ec2-user
 
             "/home/ec2-user/app/bikeapp/server.js":
@@ -291,7 +292,7 @@ Resources:
 
                 [Service]
                 Type=simple   
-                ExecStart=/home/ec2-user/.nvm/versions/node/v16.20.2/bin/node /home/ec2-user/app/server.js
+                ExecStart=/home/ec2-user/.nvm/versions/node/v16.20.2/bin/node /home/ec2-user/app/bikeapp/server.js
 
                 User=ec2-user
                 Environment=ENV=production
@@ -321,15 +322,15 @@ Resources:
             
     Properties:
       InstanceType: t2.micro
+      KeyName: Ec2NodeKeyPair
       IamInstanceProfile: !Ref Nodejs4MysqlInstanceProfile
-      KeyName: Sys0
       ImageId: !Ref ImageId
       NetworkInterfaces:
-        - AssociatePublicIpAddress: true
+        - AssociatePublicIpAddress: false
           DeviceIndex: "0"
           GroupSet:
             - !Ref InstanceSecurityGroup
-          SubnetId: !ImportValue Ec2Subnet1
+          SubnetId: !ImportValue RdsSubnet1
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
@@ -351,21 +352,49 @@ Resources:
       VpcId: !ImportValue TwoPubPrivVpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
+          FromPort: 8080
+          ToPort: 8080
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.192.0.0/16
+
+  Ec2NodeKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties: 
+      KeyName: Ec2NodeKeyPair
+
 
 
 Outputs: 
+  Nodejs4MysqlInstanceProfile:
+    Description: Profile for EC2 Node Instances 
+    Value: !Ref  Nodejs4MysqlInstanceProfile
+    Export:
+      Name:   Nodejs4MysqlInstanceProfileExport
+
   EC2SecurityGroup:
-    Description: Used by Lambda for access
+    Description: Security for Inbound Node Traffic
     Value: !Ref InstanceSecurityGroup
     Export:
       Name: Ec2IntanceSecurityGroupExport
 
-  EC2Nodejs:
+  EC2NodejsOutPut:
     Description: Used by API Gateway
-    Value: !GetAtt  EC2Nodejs.PrivateDnsName
+    Value: !GetAtt EC2Nodejs.PrivateDnsName
     Export:
         Name: Ec2InstancePrivateDnsExport
+
+  Ec2NodeKeyPairOutput:
+    Description: Ec2KeyPair
+    Value: Ec2NodeKeyPair
+    Export:
+        Name: Ec2NodeKeyPairExport
+
+  Ec2NodeArnOutput:
+    Description: Ec2KeyPair
+    Value: !Ref EC2Nodejs
+    Export:
+        Name: Ec2NodeArnExport
       

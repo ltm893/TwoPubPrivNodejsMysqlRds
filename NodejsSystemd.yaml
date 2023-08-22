@@ -222,16 +222,15 @@ Resources:
             "/home/ec2-user/scripts/simpleApp.service":
               content: |
                 [Unit]
-                Description=My Server
+                Description=Simple Nodejs Express server
                 After=network.target
                 StartLimitIntervalSec=0
 
                 [Service]
                 Type=simple
-                ExecStart=/usr/bin/python3 /home/ubuntu/my_server.py
+                ExecStart=/usr/bin/node /home/ec2-user/app/server.js
 
-                User=ubuntu
-
+                User=ec2-user
                 Environment=ENV=production
 
                 Restart=always
@@ -245,7 +244,7 @@ Resources:
                 
                           
 
-            "/home/ec2-user/app/bikeapp/server.js":
+            "/home/ec2-user/app/server.js":
               content: |
                 const express = require('express')
                 const bodyParser = require('body-parser')
