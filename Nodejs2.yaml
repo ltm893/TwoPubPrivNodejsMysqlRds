@@ -211,6 +211,7 @@ Resources:
     Properties: 
       ApiId: !Ref BikesHttpApi
       StageName: Staging
+      AutoDeploy: true
     
   
   BikesApiVpclink:
@@ -239,7 +240,24 @@ Resources:
     Properties: 
       ApiId: !Ref BikesHttpApi
       AuthorizationType: NONE
-      RouteKey: $default
+      RouteKey: 'ANY /{proxy+}'
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref BikeApiIntegration
+  
+  MyDomainName:
+    Type: 'AWS::ApiGatewayV2::DomainName'
+    Properties:
+      DomainName: apps.dliv.com
+      DomainNameConfigurations:
+        - EndpointType: REGIONAL
+          CertificateArn: >-
+           arn:aws:acm:us-east-2:635054736638:certificate/9eb7b297-e398-488a-8ffb-4a3ce9e71c3d
 
-
-        
+  MyApiMapping:
+    Type: 'AWS::ApiGatewayV2::ApiMapping'
+    Properties:
+      DomainName: apps.dliv.com
+      ApiId: !Ref BikesHttpApi
+      Stage: !Ref BikesApiStage
