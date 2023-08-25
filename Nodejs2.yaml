@@ -246,7 +246,7 @@ Resources:
         - - integrations
           - !Ref BikeApiIntegration
   
-  MyDomainName:
+  DlivApiDomainName:
     Type: 'AWS::ApiGatewayV2::DomainName'
     Properties:
       DomainName: apps.dliv.com
@@ -261,3 +261,14 @@ Resources:
       DomainName: apps.dliv.com
       ApiId: !Ref BikesHttpApi
       Stage: !Ref BikesApiStage
+
+  DlivcomDns:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z03527961312QGI34P9L5
+      Comment: Dynamic Dns for Bikes Api
+      Name: apps.dliv.com
+      Type: A
+      AliasTarget:
+        HostedZoneId: !GetAtt  DlivApiDomainName.RegionalHostedZoneId
+        DNSName: !GetAtt  DlivApiDomainName.RegionalDomainName
